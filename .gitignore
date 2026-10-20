@@ -1,7 +1,13 @@
+*.local
+*.local.json
+*.tsbuildinfo
 .DS_Store
+.deploy/
+.env*
+.jest_cache
 .now/
 dist/
 node_modules/
+scripts/diagnose*.snscript.js
+secrets.*
 target/
-*.tsbuildinfo
-.jest_cache

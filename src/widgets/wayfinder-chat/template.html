@@ -1,0 +1,91 @@
+<div class="wf-chat">
+  <aside class="wf-sidebar" aria-label="Conversations">
+    <div class="wf-brand">
+      <div class="wf-brand-name">Wayfinder</div>
+      <div class="wf-brand-sub">Internal assistant</div>
+    </div>
+    <button type="button" class="wf-btn wf-btn-new" ng-click="c.newChat()">+ New chat</button>
+    <div class="wf-section-label" id="wf-recent-label">Recent</div>
+    <ul class="wf-conv-list" aria-labelledby="wf-recent-label">
+      <li ng-repeat="conv in c.conversations track by conv.sys_id"
+          class="wf-conv" ng-class="{'is-active': conv.sys_id === c.conversationId}">
+        <button type="button" class="wf-conv-open" ng-click="c.openConversation(conv.sys_id)"
+                title="{{conv.title}}" aria-current="{{conv.sys_id === c.conversationId ? 'true' : 'false'}}">
+          <span class="wf-conv-title">{{conv.title}}</span>
+        </button>
+        <button type="button" class="wf-conv-delete" ng-click="c.deleteConversation(conv.sys_id, $event)"
+                aria-label="Delete conversation {{conv.title}}" title="Delete conversation">&times;</button>
+      </li>
+    </ul>
+    <p class="wf-empty-list" ng-if="!c.conversations.length">No conversations yet.</p>
+  </aside>
+
+  <section class="wf-main" aria-label="Chat">
+    <div class="wf-agent-bar" ng-if="c.agentStatus" role="status"
+         ng-class="{'is-accepted': c.agentStatus.accepted, 'is-closed': c.agentStatus.closed}">
+      <span class="wf-pulse" aria-hidden="true" ng-if="!c.agentStatus.closed"></span>
+      <span class="wf-agent-text">{{c.agentStatusText()}}</span>
+      <button type="button" class="wf-btn wf-btn-small" ng-if="c.agentStatus.queued && !c.agentStatus.accepted && !c.agentStatus.closed"
+              ng-click="c.cancelAgentChat()">Return to AI</button>
+    </div>
+
+    <div class="wf-messages" id="wf-messages" role="log" aria-live="polite" aria-relevant="additions">
+      <div class="wf-empty" ng-if="!c.messages.length && !c.busy">
+        <div class="wf-empty-title">How can I help today?</div>
+        <div class="wf-empty-sub">Ask about your tickets, request something from the catalog, or search the knowledge base.</div>
+      </div>
+
+      <div ng-repeat="m in c.messages track by m.sys_id" class="wf-row" ng-class="'wf-row-' + m.role">
+        <div ng-if="m.role === 'user'" class="wf-bubble wf-bubble-user" ng-bind-html="m.html"></div>
+
+        <div ng-if="m.role === 'assistant' && !m.hidden" class="wf-assistant" ng-class="{'is-agent': m.source === 'agent'}">
+          <div class="wf-agent-label" ng-if="m.source === 'agent'">{{m.agent_name || 'Agent'}}</div>
+          <div class="wf-bubble" ng-class="{'wf-bubble-agent': m.source === 'agent', 'wf-bubble-error': m.isError}" ng-bind-html="m.html"></div>
+        </div>
+
+        <div ng-if="m.role === 'tool'" class="wf-tool" ng-class="m.ok ? 'is-ok' : 'is-error'">
+          <button type="button" class="wf-tool-head" ng-click="c.toggleTool(m)" aria-expanded="{{c.expanded[m.sys_id] ? 'true' : 'false'}}">
+            <span class="wf-tool-icon" role="img" aria-label="{{m.ok ? 'Succeeded' : 'Failed'}}">{{m.ok ? '✓' : '✗'}}</span>
+            <span class="wf-tool-name">{{m.name}}</span>
+            <span class="wf-tool-toggle">{{c.expanded[m.sys_id] ? 'hide' : 'show'}}</span>
+          </button>
+          <pre class="wf-tool-body" ng-if="c.expanded[m.sys_id]">{{m.body}}</pre>
+        </div>
+      </div>
+
+      <div class="wf-confirm" ng-if="c.pending && c.pending.length" role="group" aria-labelledby="wf-confirm-title">
+        <div class="wf-confirm-title" id="wf-confirm-title">Wayfinder wants to do this. Approve?</div>
+        <div class="wf-confirm-item" ng-repeat="p in c.pending track by p.tool_call_id">
+          <div class="wf-tool-name">{{p.name}}</div>
+          <dl class="wf-confirm-args">
+            <div ng-repeat="a in c.argList(p.args) track by a.key">
+              <dt>{{a.key}}</dt>
+              <dd>{{a.value}}</dd>
+            </div>
+          </dl>
+        </div>
+        <div class="wf-confirm-actions">
+          <button type="button" class="wf-btn wf-btn-primary" ng-click="c.confirm(true)" ng-disabled="c.confirming">Approve</button>
+          <button type="button" class="wf-btn" ng-click="c.confirm(false)" ng-disabled="c.confirming">Cancel</button>
+        </div>
+      </div>
+
+      <div class="wf-thinking" ng-if="c.busy && !c.pending" role="status">
+        <span class="wf-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span>{{c.busyText()}}</span>
+      </div>
+    </div>
+
+    <div class="wf-error" ng-if="c.error" role="alert">{{c.error}}</div>
+
+    <form class="wf-composer" ng-submit="c.send()">
+      <label for="wf-input" class="sr-only">Message</label>
+      <textarea id="wf-input" class="wf-input" ng-model="c.input" ng-keydown="c.onKeydown($event)"
+                ng-attr-rows="{{c.inputRows()}}" placeholder="Ask anything…" ng-disabled="c.busy"
+                maxlength="8000"></textarea>
+      <button type="submit" class="wf-btn wf-btn-primary wf-send" ng-disabled="c.busy || !c.input.trim()">
+        {{c.busy ? 'Sending…' : 'Send'}}
+      </button>
+    </form>
+  </section>
+</div>

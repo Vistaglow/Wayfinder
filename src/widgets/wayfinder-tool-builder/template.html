@@ -1,0 +1,233 @@
+<div class="wft">
+  <header class="wft-header">
+    <h1 class="wft-title">Wayfinder Tools</h1>
+    <p class="wft-sub">Build the things the AI can do.</p>
+  </header>
+
+  <p class="wft-note" ng-if="!c.isAdmin">You can look at the tools, but only Wayfinder admins (x_snc_wayfinder_ai.admin) can change or test them.</p>
+  <div class="wft-banner wft-banner-error" role="alert" ng-if="c.error">{{c.error}}</div>
+  <div class="wft-banner wft-banner-ok" role="status" ng-if="c.notice && c.view === 'list'">{{c.notice}}</div>
+
+  <!-- ================= list ================= -->
+  <section ng-if="c.view === 'list'" aria-label="Tools">
+    <div class="wft-actions-top">
+      <button type="button" class="wft-btn wft-btn-primary" ng-click="c.newTool()" ng-disabled="!c.isAdmin">+ New tool</button>
+    </div>
+    <div class="wft-table-wrap">
+      <table class="wft-table">
+        <caption class="sr-only">Tools the AI can call</caption>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">What it does</th>
+            <th scope="col">Kind</th>
+            <th scope="col">Target</th>
+            <th scope="col">On?</th>
+            <th scope="col">Needs approval?</th>
+            <th scope="col"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="t in c.tools track by t.sys_id">
+            <td class="wft-mono">{{t.name}}</td>
+            <td>{{t.description}}</td>
+            <td>{{t.kind}}<span ng-if="t.kind === 'table'"> · {{t.operation}}</span></td>
+            <td class="wft-mono">{{t.target_table || '—'}}</td>
+            <td><span class="wft-pill" ng-class="t.enabled ? 'is-on' : 'is-off'">{{t.enabled ? 'On' : 'Off'}}</span></td>
+            <td>{{t.require_confirmation ? 'Yes' : 'No'}}</td>
+            <td class="wft-row-actions">
+              <button type="button" class="wft-btn wft-btn-small" ng-click="c.editTool(t.sys_id)">{{c.isAdmin ? 'Edit' : 'View'}}</button>
+              <button type="button" class="wft-btn wft-btn-small wft-btn-danger" ng-if="c.isAdmin" ng-click="c.deleteTool(t)"
+                      aria-label="Delete {{t.name}}">Delete</button>
+            </td>
+          </tr>
+          <tr ng-if="!c.tools.length"><td colspan="7" class="wft-muted">No tools yet. Create one, or reinstall the app to get the starter tools.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= form ================= -->
+  <form ng-if="c.view === 'form'" class="wft-form" ng-submit="c.save()" novalidate>
+    <button type="button" class="wft-link" ng-click="c.backToList()">← Back to list</button>
+
+    <div class="wft-info" ng-if="c.draft.kind === 'builtin'">
+      This is a built-in tool: its runtime behavior is in code (WayfinderTools). You can edit the description and parameters.
+    </div>
+
+    <fieldset ng-disabled="!c.isAdmin" class="wft-steps">
+      <!-- 1 -->
+      <fieldset class="wft-step">
+        <legend>1. What is this tool?</legend>
+        <div class="wft-field">
+          <label for="wft-name">Name</label>
+          <input id="wft-name" class="wft-input wft-mono" ng-model="c.draft.name" ng-disabled="!!c.draft.sys_id"
+                 placeholder="find_user_by_email" maxlength="80" autocomplete="off">
+          <span class="wft-hint">snake_case: lowercase letters, digits, underscores. Locked once saved.</span>
+        </div>
+        <div class="wft-field">
+          <label for="wft-desc">Description</label>
+          <textarea id="wft-desc" class="wft-input" rows="5" ng-model="c.draft.description" maxlength="4000"
+                    placeholder="The AI reads this to decide when to call the tool. Lead with the trigger, e.g. &quot;Look up an employee by email address. Use when the user gives an email and wants that person's name, title or manager.&quot;"></textarea>
+        </div>
+        <label class="wft-check"><input type="checkbox" ng-model="c.draft.enabled"> Available to the AI</label>
+      </fieldset>
+
+      <!-- 2 -->
+      <fieldset class="wft-step" ng-if="c.draft.kind === 'table'">
+        <legend>2. What kind of action?</legend>
+        <div class="wft-radios" role="radiogroup" aria-label="Action">
+          <label class="wft-radio"><input type="radio" name="wft-op" value="read" ng-checked="c.draft.operation === 'read'" ng-click="c.setOperation('read')"> Read: look records up</label>
+          <label class="wft-radio"><input type="radio" name="wft-op" value="update" ng-checked="c.draft.operation === 'update'" ng-click="c.setOperation('update')"> Update: change one record</label>
+          <label class="wft-radio"><input type="radio" name="wft-op" value="create" ng-checked="c.draft.operation === 'create'" ng-click="c.setOperation('create')"> Create: add a record</label>
+        </div>
+        <p class="wft-warn" ng-if="c.isWrite()">This tool changes data. Turn on "Ask for approval before running" in step 7 so the user approves each change.</p>
+      </fieldset>
+
+      <!-- 3 -->
+      <fieldset class="wft-step" ng-if="c.draft.kind === 'table'">
+        <legend>3. Which table?</legend>
+        <div ng-if="c.draft.target_table" class="wft-selected-table">
+          <span class="wft-mono">{{c.draft.target_table}}</span>
+          <button type="button" class="wft-link" ng-click="c.changeTable()">change</button>
+        </div>
+        <div ng-if="!c.draft.target_table">
+          <div class="wft-chips">
+            <button type="button" class="wft-chip" ng-repeat="t in c.popularTables track by t.name" ng-click="c.pickTable(t.name)">{{t.label}}</button>
+          </div>
+          <div class="wft-field">
+            <label for="wft-table-search">Search all tables</label>
+            <input id="wft-table-search" class="wft-input" ng-model="c.tableQuery" ng-change="c.searchTables()"
+                   ng-model-options="{debounce: 250}" placeholder="Type 2 or more characters" autocomplete="off">
+          </div>
+          <ul class="wft-results" ng-if="c.tableResults.length">
+            <li ng-repeat="t in c.tableResults track by t.name">
+              <button type="button" class="wft-result" ng-click="c.pickTable(t.name)">{{t.label}} <span class="wft-mono wft-muted">{{t.name}}</span></button>
+            </li>
+          </ul>
+        </div>
+      </fieldset>
+
+      <!-- 4 -->
+      <fieldset class="wft-step">
+        <legend>4. What can the AI ask for?</legend>
+        <p class="wft-muted">Parameters are the inputs the AI fills in. Their descriptions tell it what to pass.</p>
+        <div class="wft-param" ng-repeat="p in c.draft.parameters track by $index">
+          <div class="wft-field wft-param-name">
+            <label for="wft-pn-{{$index}}">Name</label>
+            <input id="wft-pn-{{$index}}" class="wft-input wft-mono" ng-model="p.name" autocomplete="off">
+          </div>
+          <div class="wft-field wft-param-type">
+            <label for="wft-pt-{{$index}}">Type</label>
+            <select id="wft-pt-{{$index}}" class="wft-input" ng-model="p.type"
+                    ng-options="t.value as t.label for t in c.paramTypes"></select>
+          </div>
+          <div class="wft-field wft-param-desc">
+            <label for="wft-pd-{{$index}}">Hint for the AI</label>
+            <input id="wft-pd-{{$index}}" class="wft-input" ng-model="p.description" autocomplete="off">
+          </div>
+          <div class="wft-param-flags">
+            <label class="wft-check"><input type="checkbox" ng-model="p.required"> Required</label>
+            <label class="wft-check" ng-if="c.draft.operation === 'read'" title="Lets the AI write a full encoded query (sysparm_query). It is always ANDed with your filter.">
+              <input type="checkbox" ng-model="p.raw_query"> Raw query
+            </label>
+          </div>
+          <button type="button" class="wft-icon-btn" ng-click="c.removeParam($index)" aria-label="Remove parameter {{p.name}}" title="Remove">&times;</button>
+        </div>
+        <div class="wft-param-add">
+          <div class="wft-combo" ng-if="c.draft.kind === 'table' && c.fields.length">
+            <label for="wft-param-search" class="sr-only">Add from a field on {{c.draft.target_table}}</label>
+            <input id="wft-param-search" class="wft-input" ng-model="c.paramQuery" ng-focus="c.openParamMenu()" ng-blur="c.closeParamMenu()"
+                   placeholder="+ Add from field on {{c.draft.target_table}}" autocomplete="off"
+                   role="combobox" aria-expanded="{{c.paramMenuOpen ? 'true' : 'false'}}" aria-controls="wft-param-menu">
+            <ul id="wft-param-menu" class="wft-combo-menu" role="listbox" ng-if="c.paramMenuOpen && c.paramMatches().length">
+              <li role="option" ng-repeat="f in c.paramMatches() track by f.element" ng-mousedown="c.addParamFromField(f)">
+                {{f.label}} <span class="wft-mono wft-muted">{{f.element}}</span>
+              </li>
+            </ul>
+          </div>
+          <button type="button" class="wft-btn wft-btn-small" ng-click="c.addParam()">+ Add custom parameter</button>
+        </div>
+      </fieldset>
+
+      <!-- 5 -->
+      <fieldset class="wft-step" ng-if="c.draft.kind === 'table' && c.draft.target_table">
+        <legend>5. What should the AI see back?</legend>
+        <div class="wft-field">
+          <label for="wft-field-filter">Filter fields</label>
+          <input id="wft-field-filter" class="wft-input" ng-model="c.fieldFilter" placeholder="Type to filter" autocomplete="off">
+        </div>
+        <p class="wft-muted" role="status">{{c.draft.fields.length}} selected · {{c.visibleFields().length}} shown</p>
+        <p class="wft-muted" ng-if="c.fieldsLoading">Loading fields…</p>
+        <div class="wft-field-grid">
+          <label class="wft-check" ng-repeat="f in c.visibleFields() track by f.element">
+            <input type="checkbox" ng-checked="c.isFieldSelected(f.element)" ng-click="c.toggleField(f.element)">
+            {{f.label}} <span class="wft-mono wft-muted">{{f.element}}</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <!-- 6 -->
+      <fieldset class="wft-step" ng-if="c.draft.kind === 'table' && c.draft.operation === 'read'">
+        <legend>6. Filter</legend>
+        <div class="wft-field">
+          <label for="wft-template">Encoded query template</label>
+          <textarea id="wft-template" class="wft-input wft-mono" rows="3" ng-model="c.draft.encoded_query_template"
+                    placeholder="active=true^email={email}"></textarea>
+        </div>
+        <button type="button" class="wft-btn wft-btn-small" ng-click="c.autoGenerate()">Auto-generate from parameters</button>
+        <div class="wft-help">
+          <p><strong>Placeholders</strong></p>
+          <ul>
+            <li><code>{param}</code>: the value of a parameter. Clauses whose placeholders are all empty are left out.</li>
+            <li><code>{user_sys_id}</code> or <code>javascript:gs.getUserID()</code>: the user asking.</li>
+            <li><code>{namesearch:param:f1,f2}</code>: name search that ignores word order (each word must match one of the fields).</li>
+            <li><code>{query}</code> with "Raw query" ticked: passes a model-written sysparm_query through, ANDed with the rest.</li>
+          </ul>
+          <p class="wft-muted">The AI's values are cleaned: <code>^</code>, line breaks and <code>javascript:</code> are removed, except in raw-query parameters (which may only use date helpers).</p>
+        </div>
+      </fieldset>
+
+      <!-- 7 -->
+      <fieldset class="wft-step">
+        <legend>7. Other options</legend>
+        <div class="wft-field wft-narrow" ng-if="c.draft.kind === 'table' && c.draft.operation === 'read'">
+          <label for="wft-limit">Default max results</label>
+          <input id="wft-limit" class="wft-input" type="number" min="1" max="50" ng-model="c.draft.limit">
+          <span class="wft-hint">1–50. The AI may ask for up to twice this.</span>
+        </div>
+        <label class="wft-check"><input type="checkbox" ng-model="c.draft.require_confirmation"> Ask for approval before running</label>
+        <p class="wft-muted">Recommended for update and create tools: the chat shows an Approve / Cancel card and nothing runs until the user approves.</p>
+      </fieldset>
+    </fieldset>
+
+    <!-- 8 -->
+    <fieldset class="wft-step" ng-if="c.isAdmin">
+      <legend>8. Test it</legend>
+      <p class="wft-note">Tests run as you (an admin), so results can differ from what other users see. Tests skip the approval step.</p>
+      <p class="wft-warn" ng-if="c.isWrite()">This is an {{c.draft.operation}} tool: running the test really changes data.</p>
+      <div class="wft-field" ng-repeat="p in c.draft.parameters track by $index" ng-if="p.name">
+        <label for="wft-ta-{{$index}}">{{p.name}} <span class="wft-muted">({{p.type}}{{p.required ? ', required' : ''}})</span></label>
+        <select id="wft-ta-{{$index}}" class="wft-input" ng-if="p.type === 'boolean'" ng-model="c.testArgs[p.name]">
+          <option value="">(not set)</option><option value="true">true</option><option value="false">false</option>
+        </select>
+        <input id="wft-ta-{{$index}}" class="wft-input" ng-if="p.type !== 'boolean'" ng-model="c.testArgs[p.name]" autocomplete="off">
+      </div>
+      <div class="wft-actions-inline">
+        <button type="button" class="wft-btn" ng-click="c.runTest()" ng-disabled="c.testing">{{c.testing ? 'Running…' : 'Run test'}}</button>
+        <button type="button" class="wft-btn" ng-click="c.clearTest()" ng-if="c.testResult">Clear result</button>
+      </div>
+      <div class="wft-result-panel" ng-if="c.testResult" ng-class="c.testResult.ok ? 'is-ok' : 'is-error'" role="status">
+        <div class="wft-result-title">{{c.testResult.ok ? '✓ Success' : '✗ Failed'}}</div>
+        <pre>{{c.pretty(c.testResult)}}</pre>
+      </div>
+    </fieldset>
+
+    <div class="wft-footer">
+      <button type="button" class="wft-btn" ng-click="c.backToList()">Cancel</button>
+      <button type="submit" class="wft-btn wft-btn-primary" ng-if="c.isAdmin" ng-disabled="c.saving">
+        {{c.saving ? 'Saving…' : (c.draft.sys_id ? 'Save changes' : 'Create tool')}}
+      </button>
+    </div>
+  </form>
+</div>
