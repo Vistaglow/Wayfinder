@@ -7,6 +7,9 @@ WayfinderAzureClient.prototype = {
         this.apiVersion = store.prop('azure_api_version', '2024-08-01-preview').trim();
         this.apiKey = store.prop('azure_api_key').trim();
         this.timeoutMs = parseInt(store.prop('azure_timeout_ms', '120000'), 10) || 120000;
+        // Empty = don't send temperature. Reasoning models (gpt-5 family, o-series)
+        // reject any value other than their default.
+        this.temperature = parseFloat(store.prop('azure_temperature').trim());
     },
 
     // messages: OpenAI-shape array. tools: array of function definitions (may be empty).
@@ -20,7 +23,8 @@ WayfinderAzureClient.prototype = {
         }
         var url = this.endpoint + '/openai/deployments/' + encodeURIComponent(this.deployment) +
             '/chat/completions?api-version=' + encodeURIComponent(this.apiVersion);
-        var body = { messages: messages, stream: false, temperature: 0.7 };
+        var body = { messages: messages, stream: false };
+        if (!isNaN(this.temperature)) body.temperature = this.temperature;
         if (tools && tools.length) body.tools = tools;
 
         var rm = new sn_ws.RESTMessageV2();

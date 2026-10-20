@@ -59,6 +59,16 @@ Property({
 })
 
 Property({
+    $id: Now.ID['prop_azure_temperature'],
+    $meta: { installMethod: 'first install' },
+    name: 'x_snc_wayfinder_ai.azure_temperature',
+    type: 'string',
+    value: '',
+    description: 'Sampling temperature sent to the model, e.g. 0.7. Leave empty for reasoning models (gpt-5 family, o-series), which only accept their default.',
+    roles: ADMIN_ONLY,
+})
+
+Property({
     $id: Now.ID['prop_system_prompt'],
     $meta: { installMethod: 'first install' },
     name: 'x_snc_wayfinder_ai.system_prompt',

@@ -4,7 +4,7 @@
 
 - A ServiceNow instance where you are an admin. A Personal Developer Instance works; everything here uses standard platform features, not Now Assist.
 - Node.js 20 or later.
-- An Azure OpenAI / AI Foundry chat deployment that supports tool calling (see [azure-foundry.md](azure-foundry.md)).
+- An Azure OpenAI / AI Foundry chat **deployment** that supports tool calling, and a smoke test that passes against it. See [azure-foundry.md](azure-foundry.md); do this first, because errors are much easier to read there than in the chat.
 
 ## 1. Install the app
 
@@ -22,13 +22,16 @@ What gets installed: 4 tables with ACLs, 5 script includes, 2 async business rul
 
 ## 2. Set the properties
 
-Open **Wayfinder AI > Configuration > Properties** (admin) and set:
+Open **Wayfinder AI > Configuration > Properties** (admin) and set the values that passed the smoke test:
 
 | Property | Value |
 |---|---|
-| `x_snc_wayfinder_ai.azure_endpoint` | `https://<your-resource>.openai.azure.com` (https only, no trailing slash) |
-| `x_snc_wayfinder_ai.azure_deployment` | your deployment name, e.g. `gpt-4o-mini` |
-| `x_snc_wayfinder_ai.azure_api_key` | the key (encrypted property) |
+| `x_snc_wayfinder_ai.azure_endpoint` | The resource host only: `https://<your-resource>.openai.azure.com`. If the portal shows a URL ending in `/openai/v1`, drop everything from `/openai` on. No trailing slash. |
+| `x_snc_wayfinder_ai.azure_deployment` | The **deployment name** from the Deployments list (the Name column), not the model name. |
+| `x_snc_wayfinder_ai.azure_api_version` | The api-version that worked in the smoke test, e.g. `2025-04-01-preview`. The installed default (`2024-08-01-preview`) is too old for newer models. |
+| `x_snc_wayfinder_ai.azure_api_key` | The key (encrypted property). |
+
+Temperature: Wayfinder sends no `temperature` unless `x_snc_wayfinder_ai.azure_temperature` holds a number. Leave it unset for reasoning models (gpt-5 family, o-series), which reject anything but their default. That property only exists on instances where the app was first installed after it was added; elsewhere, create it by hand (type string) if you need it.
 
 The rest have working defaults. The full list is in [tables.md](tables.md#system-properties).
 
@@ -58,8 +61,11 @@ Test: ask "talk to a human", approve the card, and watch the queued banner. Acce
 
 | Symptom | Cause and fix |
 |---|---|
-| `[error: Azure returned HTTP 401 …]` | Wrong or empty API key. |
-| `HTTP 404` | Wrong endpoint or deployment name. The URL is `{endpoint}/openai/deployments/{deployment}/chat/completions`. |
+| `[error: Azure returned HTTP 401 …]` | Wrong or empty API key, or a key from a different resource than the endpoint. |
+| `HTTP 404` with `DeploymentNotFound` | The endpoint reached a resource, but it has no deployment with that name. Check that the endpoint is the right resource (Foundry often names it `<project>-resource`), and that `azure_deployment` is the deployment name, not the model name. A deployment created in the last few minutes may not answer yet. |
+| `HTTP 404` (other) | Wrong endpoint. Wayfinder calls `{endpoint}/openai/deployments/{deployment}/chat/completions?api-version=…`, so the endpoint must be the host only. |
+| `HTTP 400` "`temperature` does not support 0.7 … Only the default (1) value is supported" | A reasoning model with a temperature set. Clear `x_snc_wayfinder_ai.azure_temperature`. (Builds before this property existed always sent 0.7: redeploy with `npm run deploy`.) |
+| `HTTP 400` about the api-version or an unsupported parameter | The api-version is too old for the model. Set `azure_api_version` to the one that passed the smoke test. |
 | `HTTP 429` | Quota or rate limit on the deployment. Raise the TPM limit in Azure. |
 | Status stays on "Thinking…" | The async rule is not running. Check **System Log > All** for messages containing `Wayfinder`, and that the business rule **Wayfinder - run chat job** is active. Async rules can queue for a while on busy instances. |
 | "The chat job is not running as the conversation owner" | The async rule ran as a different user, so the agent refused to run tools. Check for customizations that insert chat jobs as another user. |
