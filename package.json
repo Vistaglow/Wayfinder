@@ -1,7 +1,7 @@
 {
     "name": "x-snc-wayfinder-ai",
     "version": "1.0.0",
-    "description": "Agentic AI",
+    "description": "Wayfinder: an in-platform AI assistant for ServiceNow (Service Portal chat, admin-defined tools, live-agent handoff).",
     "license": "UNLICENSED",
     "imports": {
         "#now:*": "./@types/servicenow/fluent/*/index.js"
@@ -9,6 +9,8 @@
     "scripts": {
         "build": "now-sdk build",
         "deploy": "now-sdk install",
+        "pack": "now-sdk pack",
+        "test": "node --test \"test/*.test.cjs\"",
         "transform": "now-sdk transform",
         "types": "now-sdk dependencies"
     },
