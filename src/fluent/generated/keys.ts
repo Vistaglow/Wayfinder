@@ -237,6 +237,10 @@ declare global {
                         table: 'sys_properties'
                         id: '628cff6192e6497bb476d10908d3800d'
                     }
+                    prop_azure_temperature: {
+                        table: 'sys_properties'
+                        id: '1aa3de26d301471f8b73b43df47179ab'
+                    }
                     prop_azure_timeout_ms: {
                         table: 'sys_properties'
                         id: '0538e7f17b0b4c76bb1a2925c4629c37'

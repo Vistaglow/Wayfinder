@@ -73,10 +73,11 @@ Installed on first install only, so updates never reset them. Read and write: ad
 | Property | Type | Default / purpose |
 |---|---|---|
 | `x_snc_wayfinder_ai.azure_endpoint` | string | `https://YOUR-RESOURCE.openai.azure.com` |
-| `x_snc_wayfinder_ai.azure_deployment` | string | `gpt-4o-mini` |
-| `x_snc_wayfinder_ai.azure_api_version` | string | `2024-08-01-preview` |
+| `x_snc_wayfinder_ai.azure_deployment` | string | `gpt-4o-mini` (placeholder: set your own deployment name; this model is deprecated) |
+| `x_snc_wayfinder_ai.azure_api_version` | string | `2024-08-01-preview` (newer models need a newer version, e.g. `2025-04-01-preview`) |
 | `x_snc_wayfinder_ai.azure_api_key` | password2 | empty; required |
 | `x_snc_wayfinder_ai.azure_timeout_ms` | integer | `120000` |
+| `x_snc_wayfinder_ai.azure_temperature` | string | empty: temperature is not sent. Set e.g. `0.7` only for models that accept it (not gpt-5 family or o-series). Added after 1.0.0's first install: on an instance that already has the app, create it by hand if you want it. |
 | `x_snc_wayfinder_ai.system_prompt` | string | See `src/fluent/system-prompt.txt`. |
 | `x_snc_wayfinder_ai.use_bot_api` | boolean | `false`: live-agent handoff off |
 | `x_snc_wayfinder_ai.bot_api_basic_user` | string | Basic Auth user for the VA Bot API |
